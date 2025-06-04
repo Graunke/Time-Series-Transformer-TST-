@@ -10,7 +10,8 @@ def data_pre_processing():
     df_geracao['val_geracao_norm'] = scaler.fit_transform(df_geracao[['val_geracao']])
 
     #Dataset train/test spliting 21.8 % for test
-    df_train = df_geracao['val_geracao_norm'][:1500].to_numpy()
-    df_test = df_geracao['val_geracao_norm'][1500:].to_numpy()
-    return df_train,df_test,df_geracao['val_geracao_norm'],scaler
+    df_train = df_geracao['val_geracao_norm'][:1278].to_numpy()
+    df_val = df_geracao['val_geracao_norm'][1278:1389].to_numpy()
+    df_test = df_geracao['val_geracao_norm'][1389:].to_numpy()
+    return df_train, df_val, df_test,df_geracao['val_geracao_norm'],scaler
 
