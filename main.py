@@ -15,14 +15,16 @@ from tst import PositionalEncoding,TransformerModel
 df_train, df_test, df_geracao, scaler = data_pre_processing()
 
 #ACF and PACF
-plot_acf(df_geracao, lags=20)
+fig2 = plot_acf(df_geracao, lags=20)
 plt.title('Autocorrelation Function (ACF)')
 plt.show()
 
-plot_pacf(df_geracao, lags=20)
+fig1 = plot_pacf(df_geracao, lags=20)
 plt.title('Partial Autocorrelation Function (PACF)')
 plt.show()
 
+# fig1.savefig("ACF.png", dpi=300)
+# fig2.savefig("PACF.png", dpi=300)
 
 #Significant lags
 len_seq = [3,6,8,15] #due to PACF
@@ -39,8 +41,8 @@ def df_to_X_y(len_seq, obs):
     y.append(label)
   return torch.tensor(X, dtype=torch.float32).view(-1, len_seq, 1), torch.tensor(y, dtype=torch.float32).view(-1, 1)
 
-X_train, y_train = df_to_X_y(len_seq[2], df_train)
-X_test, y_test = df_to_X_y(len_seq[2], df_test)
+X_train, y_train = df_to_X_y(len_seq[3], df_train)
+X_test, y_test = df_to_X_y(len_seq[3], df_test)
 
 train_dataset = TensorDataset(X_train, y_train)
 test_dataset = TensorDataset(X_test, y_test)
@@ -49,7 +51,7 @@ train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
 
 #Applying the model
-model = TransformerModel(input_size=1, seq_len=len_seq[2]).to('cuda')
+model = TransformerModel(input_size=1, seq_len=len_seq[3]).to('cuda')
 
 #Training
 criterion = nn.MSELoss()
@@ -103,7 +105,7 @@ predictions_normalized = np.concatenate(predictions_normalized, axis=0)
 predictions_denormalized = scaler.inverse_transform(predictions_normalized)
 actual_denormalized = scaler.inverse_transform(y_test.cpu().numpy())
 
-plt.figure(figsize=(12, 6))
+fig3 = plt.figure(figsize=(12, 6))
 plt.plot(actual_denormalized, label='Actual')
 plt.plot(predictions_denormalized, label='Predicted')
 plt.title('Actual vs Predicted Energy Generation (Denormalized)')
@@ -111,3 +113,5 @@ plt.xlabel('Time')
 plt.ylabel('Energy Generation')
 plt.legend()
 plt.show()
+
+fig3.savefig("testpredictions.png", dpi=300)
