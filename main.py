@@ -143,8 +143,8 @@ with torch.no_grad():
     for _ in range(10):
         next_prediction_normalized = model(last_sequence)
         future_predictions_normalized.append(next_prediction_normalized.cpu().numpy())
-        print(last_sequence)
-        print(next_prediction_normalized)
+        print(f'LS: {last_sequence}')
+        print(f'NP: {next_prediction_normalized}')
         last_sequence = torch.cat((last_sequence[:, 1:, :], next_prediction_normalized.unsqueeze(1)), dim=1)
 
 future_predictions_normalized = np.concatenate(future_predictions_normalized, axis=0)
@@ -168,5 +168,4 @@ plt.ylabel('Energy Generation')
 plt.legend()
 plt.grid(True)
 plt.show()
-
 # fig4.savefig('10 Steps Prediction',dpi = 300)
