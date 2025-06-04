@@ -113,5 +113,4 @@ plt.xlabel('Time')
 plt.ylabel('Energy Generation')
 plt.legend()
 plt.show()
-
 fig3.savefig("testpredictions.png", dpi=300)
