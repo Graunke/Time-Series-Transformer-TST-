@@ -13,6 +13,9 @@ from tst import PositionalEncoding,TransformerModel
 
 #Variable Values
 df_train, df_test, df_geracao, scaler = data_pre_processing()
+print(df_geracao)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #ACF and PACF
 fig2 = plot_acf(df_geracao, lags=20)
@@ -55,24 +58,38 @@ model = TransformerModel(input_size=1, seq_len=len_seq[3]).to('cuda')
 
 #Training
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-# sched_get_priority_max
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5)
 
-#Defining number ef epochs
+
 num_epochs = 100
+early_stop_count = 0
+min_val_loss = float('inf')
 
-#Training loop
 for epoch in range(num_epochs):
   model.train()
+  val_losses = []
   for batch in train_loader:
     X_batch, y_batch = batch
-    X_batch, y_batch = X_batch.to('cuda'), y_batch.to('cuda')
+    X_batch, y_batch = X_batch.to(device), y_batch.to(device)
     optimizer.zero_grad()
     outputs = model(X_batch)
     loss = criterion(outputs, y_batch)
     loss.backward()
+    val_losses.append(loss.item())
     optimizer.step()
-  print(f'Epoch: {epoch} Loss: {loss}')
+  
+  val_loss = np.mean(val_losses)
+  scheduler.step(val_loss)
+  if val_loss < min_val_loss:
+    min_val_loss = val_loss
+    early_stop_count = 0
+  else:
+    early_stop_count += 1
+  if early_stop_count >= 5:
+    print("Early stopping triggered.")
+    break
+  print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {loss.item():.4f}, Val Loss: {val_loss:.4f}")
 
 #Evaluation
 mse = MeanSquaredError()
@@ -113,4 +130,43 @@ plt.xlabel('Time')
 plt.ylabel('Energy Generation')
 plt.legend()
 plt.show()
-fig3.savefig("testpredictions.png", dpi=300)
+
+#fig3.savefig("testpredictions.png", dpi=300)
+
+future_predictions_normalized = []
+
+last_sequence_data = df_geracao.tail(len_seq[3]).to_numpy()
+last_sequence = torch.tensor(last_sequence_data, dtype=torch.float32).view(1, len_seq[3], 1).to(device)
+
+
+with torch.no_grad():
+    for _ in range(10):
+        next_prediction_normalized = model(last_sequence)
+        future_predictions_normalized.append(next_prediction_normalized.cpu().numpy())
+        print(last_sequence)
+        print(next_prediction_normalized)
+        last_sequence = torch.cat((last_sequence[:, 1:, :], next_prediction_normalized.unsqueeze(1)), dim=1)
+
+future_predictions_normalized = np.concatenate(future_predictions_normalized, axis=0)
+future_predictions_denormalized = scaler.inverse_transform(future_predictions_normalized)
+
+print("Future 10 predictions (denormalized):")
+print(future_predictions_denormalized)
+
+
+combined_data = np.concatenate([actual_denormalized[-100:], future_predictions_denormalized], axis=0)
+df = pd.DataFrame(combined_data, columns=['Geração de Energia'])
+dfdata = df[:100]
+dfpred = df[99:]
+
+fig4 = plt.figure(figsize=(15, 7))
+plt.plot(dfdata.index,dfdata['Geração de Energia'], color = 'blue', label = 'Valores Reais')
+plt.plot(dfpred.index,dfpred['Geração de Energia'], color = 'red', label = 'Valores Previstos')
+plt.title('Continuation of Test Data with Future Predictions')
+plt.xlabel('Time Step')
+plt.ylabel('Energy Generation')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# fig4.savefig('10 Steps Prediction',dpi = 300)
